@@ -236,6 +236,87 @@ body.light-mode .ring::after{
     }
     #chicken-overlay.active{display:block}
 
+#fate-overlay{
+  position:fixed;
+  inset:0;
+  z-index:10020;
+  display:grid;
+  place-items:center;
+  background:#000;
+  color:#fff;
+  padding:24px;
+  text-align:center;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition: opacity 500ms ease, visibility 500ms ease;
+}
+#fate-overlay.active{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+#fate-overlay .fate-panel{width:min(640px, 100%); display:grid; gap:12px}
+#fate-overlay h2{margin:0; font-size:clamp(1.2rem, 2.2vw, 2rem)}
+#fate-overlay p{margin:0; color:#d5d5d5}
+#fate-sorry-input{
+  width:100%;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.35);
+  background:#0b0b0b;
+  color:#fff;
+  padding:12px 14px;
+  font:inherit;
+  text-align:center;
+}
+#again.corner-run{
+  position:fixed !important;
+  top:0 !important;
+  right:0 !important;
+  margin:0 !important;
+  z-index:2147483647 !important;
+  transform:none !important;
+}
+#again.again-melting{
+  border-radius: 47% 53% 62% 38% / 36% 44% 56% 64%;
+  background:linear-gradient(180deg, #f89d4f, #ca3b26);
+  animation: melt 2.4s ease-in-out infinite;
+  border:1px solid rgba(0,0,0,0.2);
+}
+#cry-rain{
+  position:fixed;
+  inset:0;
+  z-index:10025;
+  pointer-events:none;
+  overflow:hidden;
+}
+.cry-drop{
+  position:absolute;
+  top:-12vh;
+  font-size:clamp(1.2rem, 2.8vw, 2rem);
+  animation: cry-fall linear forwards;
+  user-select:none;
+}
+@keyframes cry-fall{
+  from{ transform: translateY(0) rotate(0deg); }
+  to{ transform: translateY(122vh) rotate(28deg); }
+}
+#again.again-float{
+  animation: again-float-up 10s ease-in-out forwards !important;
+}
+#again.again-gone{
+  display:none !important;
+}
+@keyframes again-float-up{
+  0%{ transform: translateY(0); }
+  100%{ transform: translateY(-112vh); }
+}
+@keyframes melt{
+  0%{transform: translateY(0) skewX(0deg)}
+  50%{transform: translateY(2px) skewX(2deg)}
+  100%{transform: translateY(0) skewX(0deg)}
+}
+
     #secret-page{
       position:fixed;
       inset:0;
@@ -271,6 +352,14 @@ body.light-mode .ring::after{
 </head>
 <body>
   <div id="chicken-overlay" aria-hidden="true"></div>
+  <div id="cry-rain" aria-hidden="true"></div>
+<section id="fate-overlay" aria-hidden="true">
+  <div class="fate-panel">
+    <h2>you have pressed again too many times</h2>
+    <p>say sorry</p>
+    <input id="fate-sorry-input" type="text" autocomplete="off" placeholder="type sorry" />
+  </div>
+</section>
   <section id="secret-page" aria-hidden="true">
     <h2>Secret Editor</h2>
     <div class="secret-grid">
@@ -337,7 +426,10 @@ body.light-mode .ring::after{
     const againBtn = document.getElementById('again');
     const copyBtn = document.getElementById('copy');
     const themeToggleBtn = document.getElementById('theme-toggle');
-    const a11y = document.getElementById('a11y-status');
+const a11y = document.getElementById('a11y-status');
+const fateOverlay = document.getElementById('fate-overlay');
+const fateSorryInput = document.getElementById('fate-sorry-input');
+const cryRain = document.getElementById('cry-rain');
     const chickenOverlay = document.getElementById('chicken-overlay');
     const secretPage = document.getElementById('secret-page');
     const secretEditor = document.getElementById('secret-editor');
@@ -346,8 +438,15 @@ body.light-mode .ring::after{
     const secretChatEmbed = document.getElementById('secret-chat-embed');
     const secretCode = 'kaiisthebestpersonever123';
     const codyMinecraftUrl = 'https://www.google.com/search?q=minecraft&sca_esv=2df7ce30d2edfc27&sxsrf=ANbL-n51Hd8Q-VwgeE-rbvlB67HmnDo1iw%3A1771273952105&ei=4H6TaamNBu2l2roPjJrrQQ&biw=927&bih=621&ved=0ahUKEwip_dvV7d6SAxXtklYBHQzNOggQ4dUDCBM&uact=5&oq=minecraft&gs_lp=Egxnd3Mtd2l6LXNlcnAiCW1pbmVjcmFmdDIQEC4YgAQYsQMYQxiDARiKBTIKEAAYgAQYQxiKBTIKEAAYgAQYQxiKBTINEC4YgAQYsQMYQxiKBTIKEAAYgAQYQxiKBTIKEAAYgAQYQxiKBTIQEAAYgAQYsQMYQxiDARiKBTIKEAAYgAQYQxiKBTIKEAAYgAQYQxiKBUjNE1CHBVjVEnABeAGQAQCYAY4BoAGcBqoBAzYuM7gBA8gBAPgBAZgCCqACwAaoAgrCAgcQIxgnGOoCwgINECMY8AUYJxjJAhjqAsICChAjGIAEGCcYigXCAhEQLhiABBiRAhjHARiKBRivAcICCxAuGIAEGNEDGMcBwgILEC4YgAQYsQMYgwHCAgsQABiABBixAxiDAcICDhAAGIAEGLEDGIMBGIoFwgIKECMY8AUYJxjJAsICCxAuGIAEGJECGIoFwgILEAAYgAQYkQIYigXCAgoQLhiABBhDGIoFwgINEAAYgAQYsQMYQxiKBZgDAvEFvfZjE7_Ng3uSBwM3LjOgB_V8sgcDNi4zuAe-BsIHBTAuNy4zyAcbgAgA&sclient=gws-wiz-serp';
-    let chickenOverlayTimer = null;
-    let codyOpenTimer = null;
+let chickenOverlayTimer = null;
+let codyOpenTimer = null;
+let eraseTimer = null;
+let typeTimer = null;
+let lastScannedNormalized = '';
+let againCountForName = 0;
+let fateLockActive = false;
+let meltSequenceActive = false;
+let meltSequenceTimer = null;
 
     // deterministic hash → 0..100
     function djb2(str){
@@ -412,7 +511,88 @@ body.light-mode .ring::after{
       secretChatEmbed.src = 'https://chatgpt.com';
     }
 
-    function scan(name){
+function runSlowErase(){
+  if (eraseTimer) {
+    clearInterval(eraseTimer);
+    eraseTimer = null;
+  }
+  if (typeTimer) {
+    clearInterval(typeTimer);
+    typeTimer = null;
+  }
+
+  eraseTimer = setInterval(()=>{
+    if (!input.value) {
+      clearInterval(eraseTimer);
+      eraseTimer = null;
+
+      const target = 'STOP TRYING!';
+      let i = 0;
+      typeTimer = setInterval(()=>{
+        i += 1;
+        input.value = target.slice(0, i);
+        if (i >= target.length) {
+          clearInterval(typeTimer);
+          typeTimer = null;
+        }
+      }, 120);
+      return;
+    }
+    input.value = input.value.slice(0, -1);
+  }, 140);
+}
+
+function triggerMeltingAftermath(){
+  if (meltSequenceActive) return;
+  meltSequenceActive = true;
+
+  if (meltSequenceTimer) {
+    clearTimeout(meltSequenceTimer);
+    meltSequenceTimer = null;
+  }
+
+  againBtn.classList.add('again-float');
+  cryRain.textContent = '';
+
+  const drops = 72;
+  for (let i = 0; i < drops; i++) {
+    const d = document.createElement('span');
+    d.className = 'cry-drop';
+    d.textContent = '😭';
+    d.style.left = (Math.random() * 100).toFixed(2) + 'vw';
+    d.style.animationDuration = (2.8 + Math.random() * 3.6).toFixed(2) + 's';
+    d.style.animationDelay = (Math.random() * 1.8).toFixed(2) + 's';
+    d.style.opacity = String(0.65 + Math.random() * 0.35);
+    d.addEventListener('animationend', ()=> d.remove(), { once: true });
+    cryRain.appendChild(d);
+  }
+
+  meltSequenceTimer = setTimeout(()=>{
+    againBtn.classList.add('again-gone');
+    cryRain.textContent = '';
+    meltSequenceActive = false;
+    meltSequenceTimer = null;
+  }, 10000);
+}
+
+function triggerFateLock(){
+  fateLockActive = true;
+  fateOverlay.classList.add('active');
+  fateOverlay.setAttribute('aria-hidden', 'false');
+  fateSorryInput.value = '';
+  fateSorryInput.focus();
+}
+
+function clearFateLock(){
+  fateLockActive = false;
+  fateOverlay.classList.remove('active');
+  fateOverlay.setAttribute('aria-hidden', 'true');
+  againBtn.classList.remove('corner-run');
+  againBtn.classList.add('again-melting');
+  againCountForName = 0;
+}
+
+function scan(name){
       const normalized = normalizeName(name);
       let displayPercent;
       let meterPercent;
@@ -420,9 +600,10 @@ body.light-mode .ring::after{
       let desc;
       let finalPercentLabel = null;
 
-      ring.classList.remove('rainbow');
-      ring.classList.remove('chicken');
-      ring.classList.remove('monkey');
+ring.classList.remove('rainbow');
+ring.classList.remove('chicken');
+ring.classList.remove('monkey');
+againBtn.classList.remove('corner-run');
       body.classList.remove('sunny-mode');
       body.classList.remove('cody-mode');
       body.classList.remove('secret-mode');
@@ -433,12 +614,34 @@ body.light-mode .ring::after{
         clearTimeout(chickenOverlayTimer);
         chickenOverlayTimer = null;
       }
-      if (codyOpenTimer) {
-        clearTimeout(codyOpenTimer);
-        codyOpenTimer = null;
-      }
+if (codyOpenTimer) {
+  clearTimeout(codyOpenTimer);
+  codyOpenTimer = null;
+}
+if (eraseTimer) {
+  clearInterval(eraseTimer);
+  eraseTimer = null;
+}
+if (typeTimer) {
+  clearInterval(typeTimer);
+  typeTimer = null;
+}
+if (meltSequenceTimer) {
+  clearTimeout(meltSequenceTimer);
+  meltSequenceTimer = null;
+}
+againBtn.classList.remove('again-float');
+cryRain.textContent = '';
+meltSequenceActive = false;
+if (!fateLockActive) {
+  fateOverlay.classList.remove('active');
+  fateOverlay.setAttribute('aria-hidden', 'true');
+}
 
-      if (normalized === secretCode) {
+lastScannedNormalized = normalized;
+againCountForName = 0;
+
+if (normalized === secretCode) {
         openSecretPage();
         return;
       } else if (normalized === 'zain') {
@@ -582,12 +785,53 @@ body.light-mode .ring::after{
       if(!name) return;
       scan(name);
     });
+// again button fate system
+againBtn.addEventListener('click', ()=>{
+  if (fateLockActive) return;
 
-    // again button resets focus
-    againBtn.addEventListener('click', ()=>{
-      input.focus();
-      input.select();
-    });
+  if (againBtn.classList.contains('again-melting')) {
+    triggerMeltingAftermath();
+    return;
+  }
+
+  const current = normalizeName(input.value);
+  const sameName = !!lastScannedNormalized && (current === lastScannedNormalized || againCountForName >= 3);
+
+  if (!sameName) {
+    againCountForName = 0;
+    againBtn.classList.remove('corner-run');
+    input.focus();
+    input.select();
+    return;
+  }
+
+  againCountForName += 1;
+
+  if (againCountForName <= 2) {
+    input.focus();
+    input.select();
+    return;
+  }
+
+  if (againCountForName === 3) {
+    reasonEl.textContent = 'YOU CANNOT CHANGE YOUR FATE';
+    return;
+  }
+
+  if (againCountForName === 4) {
+    reasonEl.textContent = 'YOU CANNOT CHANGE YOUR FATE!';
+    runSlowErase();
+    return;
+  }
+
+  if (againCountForName === 5) {
+    reasonEl.textContent = 'YOU CANNOT CHANGE YOUR FATE!';
+    againBtn.classList.add('corner-run');
+    return;
+  }
+
+  triggerFateLock();
+});
 
     // copy share link
     copyBtn.addEventListener('click', async ()=>{
@@ -608,10 +852,26 @@ body.light-mode .ring::after{
       document.close();
     });
 
-    secretCloseBtn.addEventListener('click', ()=>{
-      body.classList.remove('secret-mode');
-      secretPage.setAttribute('aria-hidden', 'true');
-    });
+secretCloseBtn.addEventListener('click', ()=>{
+  body.classList.remove('secret-mode');
+  secretPage.setAttribute('aria-hidden', 'true');
+});
+
+function trySorryReset(){
+  if ((fateSorryInput.value || '').trim().toLowerCase() === 'sorry') {
+    clearFateLock();
+  }
+}
+
+fateSorryInput.addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    trySorryReset();
+  }
+});
+
+fateSorryInput.addEventListener('change', trySorryReset);
+fateSorryInput.addEventListener('input', trySorryReset);
 
     // auto-run if ?name= is present
     const params = new URLSearchParams(location.search);
